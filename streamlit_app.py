@@ -1,33 +1,38 @@
-import numpy as np
-import cv2
-from keras.models import Sequential
-from keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+from tensorflow.keras.applications import DenseNet121
 
-# Load the dataset of X-ray images and labels
-train_images, train_labels, test_images, test_labels = load_dataset()
+# Load Data (placeholder)
+train_images, train_labels = load_data()
 
-# Preprocess the X-ray images
-train_images = preprocess_images(train_images)
-test_images = preprocess_images(test_images)
+# Split data into train and validation sets
+train_images, val_images, train_labels, val_labels = train_test_split(
+    train_images, train_labels, test_size=0.2, random_state=42)
 
-# Define the CNN model architecture
-model = Sequential()
-model.add(Conv2D(32, (3, 3), activation='relu', input_shape=(224, 224, 3)))
-model.add(MaxPooling2D((2, 2)))
-model.add(Conv2D(64, (3, 3), activation='relu'))
-model.add(MaxPooling2D((2, 2)))
-model.add(Conv2D(128, (3, 3), activation='relu'))
-model.add(MaxPooling2D((2, 2)))
-model.add(Flatten())
-model.add(Dense(128, activation='relu'))
-model.add(Dense(10, activation='softmax'))
+# Pretrained CNN (e.g., DenseNet121)
+base_model = DenseNet121(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
+base_model.trainable = False  # Freeze the pretrained layers
+
+# Model architecture
+model = models.Sequential([
+    base_model,
+    layers.GlobalAveragePooling2D(),
+    layers.Dense(128, activation='relu'),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(num_classes, activation='softmax')  # For disease classification
+])
 
 # Compile the model
 model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
 # Train the model
-model.fit(train_images, train_labels, epochs=10, batch_size=32, validation_data=(test_images, test_labels))
+history = model.fit(train_images, train_labels, epochs=10, validation_data=(val_images, val_labels))
 
-# Evaluate the model
-loss, accuracy = model.evaluate(test_images, test_labels)
-print(f'Test accuracy: {accuracy:.2f}%')
+# Fine-tune the model
+base_model.trainable = True
+model.compile(optimizer=tf.keras.optimizers.Adam(1e-5), loss='categorical_crossentropy', metrics=['accuracy'])
+history_finetune = model.fit(train_images, train_labels, epochs=10, validation_data=(val_images, val_labels))
+
+# Predict outcomes
+outcome_model = models.Sequential([...])  # Add outcome prediction layers
